@@ -216,19 +216,19 @@ Devel::IntelliPerl - Auto-completion for Perl
     
 =head1 ATTRIBUTES
 
-=head2 line
+=head2 line_number (Int $line_number)
 
 B<Required>
 
 Line number of the cursor. Starts at C<1>.
 
-=head2 column
+=head2 column (Int $column)
 
 B<Required>
 
-Position of the cursor. Starts at C<0>.
+Position of the cursor. Starts at C<1>.
 
-=head2 source
+=head2 source (Str $source)
 
 B<Required>
 
@@ -238,7 +238,7 @@ Source code.
 
 B<Optional>
 
-Store the filename of the current file. This optional. If this value is set C<@INC> is extended by all C<lib> directories,
+Store the filename of the current file. If this value is set C<@INC> is extended by all C<lib> directories
 found in any parent directory. This is useful if you want to have access to modules which are not in C<@INC> but in
 your local C<lib> folder. This method sets L</inc>.
 
@@ -252,23 +252,31 @@ All directories specified will be prepended to C<@INC>.
 
 =head1 METHODS
 
+=head2 error
+
+If an error occurs it is accessible via this method.
+
+=head2 line (Str $line)
+
+Sets or gets the current line.
+
 =head2 keyword
 
 This represents the current keyword.
 
-Examples (cursor is always placed at the end of the line):
+Examples (C<_> stands for the cursor position):
 
-  my $foo = MyClass-> # keyword is MyClass
-  my $foo->           # keyword is $foo
+  my $foo = MyClass->_ # keyword is MyClass
+  my $foo->_           # keyword is $foo
 
 =head2 prefix
 
 Part of a method which has already been typed.
 
-Examples (cursor is always placed at after C<< -> >>):
+Examples (C<_> stands for the cursor position):
 
-  my $foo = MyClass->foo # keyword is MyClass, prefix is foo
-  my $foo->bar           # keyword is $foo,    prefix is bar
+  my $foo = MyClass->foo_ # keyword is MyClass, prefix is foo
+  my $foo->bar_           # keyword is $foo,    prefix is bar
 
 =head2 methods
 
@@ -304,6 +312,12 @@ Injects C<$statement> at the current position.
 =head2 update_inc
 
 Trigger called by L</filename>.
+
+=head1 SCREENCASTS
+
+L<http://www.screencast.com/t/H5DdRNbQVt>
+
+L<http://www.screencast.com/t/djkraaYgpx>
 
 =head1 TODO
 
