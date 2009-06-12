@@ -1,0 +1,8 @@
+.DS_Store
+.cvsignore
+Devel-IntelliPerl-0.01.tar.gz
+META.yml
+Makefile
+blib/
+inc/
+pm_to_blib
