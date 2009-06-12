@@ -16,7 +16,7 @@ my $VAR     = '\$' . $CLASS;
 
 has line_number   => ( isa => 'Int', is => 'rw', required => 1 );
 has column => ( isa => 'Int', is => 'rw', required => 1 );
-has filename => ( isa => 'Str', is => 'rw', trigger => \&update_inc );
+has filename => ( isa => 'Str', is => 'rw' );
 has source => ( isa => 'Str', is => 'rw', required => 1 );
 has inc => ( isa => 'ArrayRef[Str]', is => 'rw' );
 has ppi => ( isa => 'PPI::Document', is => 'rw', lazy => 1, builder => '_build_ppi', clearer => 'clear_ppi' );
@@ -28,14 +28,9 @@ after source => sub {
     $self->clear_ppi if(@_);
 };
 
-after inc => sub {
-    my $self = shift;
-    unshift( @INC, @{$_[0]} ) if($_[0]);
-};
-
-sub update_inc  {
+after filename => sub {
     my $self   = shift;
-    my $parent = Path::Class::File->new($self->filename);
+    my $parent = $self->filename;
     my @libs;
     while ( $parent = $parent->parent ) {
         last if ( $parent eq $parent->parent );
@@ -43,6 +38,7 @@ sub update_inc  {
           if ( -e $parent->subdir('lib') );
     }
     $self->inc( \@libs );
+    unshift( @INC, @libs );
 };
 
 sub line {
@@ -58,12 +54,10 @@ sub line {
 sub inject_statement {
     my ( $self, $statement ) = @_;
     my $line   = $self->line;
-    my $prefix = substr( $line, 0, $self->column - 1 );
-    my $postfix = substr( $self->line, $self->column - 1 )
-      if(length $self->line >= $self->column);
+    my $prefix = substr( $line, 0, $self->column );
     $self->line($prefix
       . $statement
-      . ($postfix || '') );
+      . substr( $self->line, $self->column ));
     return $self->line;
 }
 
@@ -73,7 +67,7 @@ sub _build_ppi {
 
 sub keyword {
     my ($self) = @_;
-    my $line = substr( $self->line, 0, $self->column - 1 );
+    my $line = substr( $self->line, 0, $self->column );
     if($line =~ /.*?(\$?$CLASS)->($KEYWORD)?$/) {
         return $1 || '';
     }
@@ -81,7 +75,7 @@ sub keyword {
 
 sub prefix {
     my ($self) = @_;
-    my $line = substr( $self->line, 0, $self->column - 1 );
+    my $line = substr( $self->line, 0, $self->column );
     if($line =~ /.*?(\$?$CLASS)->($KEYWORD)?$/) {
         return $4 || '';
     }
@@ -129,21 +123,9 @@ sub handle_variable {
     return $class;
 }
 
-sub handle_class {
-    my ($self) = @_;
-    my $keyword = $self->keyword;
-    eval { Class::MOP::load_class($keyword); };
-    if($@) {
-        $self->handle_self;
-    }
-    return $keyword;
-}
+sub handle_class {}
 
-sub trimmed_methods {
-    my ($self) = @_;
-    my $prefix = $self->prefix;
-    return map { substr( $_, length $prefix ) } $self->methods;
-}
+sub trimmed_methods {}
 
 sub methods {
     my ($self) = @_;
@@ -154,7 +136,7 @@ sub methods {
     } elsif ( $keyword =~ /$VAR/ ) {
         $class = $self->handle_variable;
     } else {
-        $class = $self->handle_class;
+        $class = $keyword;
     }
     
     return undef unless($class && $class =~ /^$CLASS$/);
@@ -190,30 +172,15 @@ Devel::IntelliPerl - Auto-completion for Perl
 
 =head1 SYNOPSIS
 
+Quick summary of what the module does.
+
+Perhaps a little code snippet.
+
     use Devel::IntelliPerl;
 
-    my $source = <<'SOURCE';
-    package Foo;
+    my $foo = Devel::IntelliPerl->new();
+    ...
 
-    use Moose;
-
-    has foobar => ( isa => 'Str', is => 'rw' );
-
-    sub bar {
-        my $self = shift;
-        $self->
-    }
-
-    1;
-    SOURCE
-
-
-    my $ip = Devel::IntelliPerl->new(source => $source, line_number => 9, column => 12);
-    
-    my @methods = $ip->methods;
-    
-    # @methods contains "bar" and "foobar" amongst others
-    
 =head1 ATTRIBUTES
 
 =head2 line
@@ -242,74 +209,11 @@ Store the filename of the current file. This optional. If this value is set C<@I
 found in any parent directory. This is useful if you want to have access to modules which are not in C<@INC> but in
 your local C<lib> folder. This method sets L</inc>.
 
-B<This value is NOT used to retrive the source code!> Use L</source> instead.
-
 =head2 inc
 
 B<Optional>
 
-All directories specified will be prepended to C<@INC>.
-
-=head1 METHODS
-
-=head2 keyword
-
-This represents the current keyword.
-
-Examples (cursor is always placed at the end of the line):
-
-  my $foo = MyClass-> # keyword is MyClass
-  my $foo->           # keyword is $foo
-
-=head2 prefix
-
-Part of a method which has already been typed.
-
-Examples (cursor is always placed at after C<< -> >>):
-
-  my $foo = MyClass->foo # keyword is MyClass, prefix is foo
-  my $foo->bar           # keyword is $foo,    prefix is bar
-
-=head2 methods
-
-Returns all methods which were found for L</keyword>.
-
-=head2 trimmed_methods
-
-Returns L</methods> truncated from the beginning by the length of L</prefix>.
-
-=head1 INTERNAL METHODS
-
-=head2 handle_class
-
-Loads the selected class.
-
-=head2 handle_self
-
-Loads the current class.
-
-=head2 handle_variable
-
-Tries to find the variable's class using regexes. Supported syntaxes:
-
-  $variable = MyClass->new
-  $variable = MyClass->new(...)
-  $variable = new MyClass
-  # $variable isa MyClass
-
-=head2 inject_statement ($statement)
-
-Injects C<$statement> at the current position.
-
-=head2 update_inc
-
-Trigger called by L</filename>.
-
-=head1 TODO
-
-=over
-
-=item Support for auto completion in the POD (e.g. C<< L<Devel::IntelliPerl/[auto complete]> >>)
+All directories specified will be added to C<@INC>.
 
 =head1 AUTHOR
 
@@ -320,6 +224,9 @@ Moritz Onken, C<< <onken at netcubed.de> >>
 Please report any bugs or feature requests to C<bug-devel-intelliperl at rt.cpan.org>, or through
 the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Devel-IntelliPerl>.  I will be notified, and then you'll
 automatically be notified of progress on your bug as I make changes.
+
+
+
 
 =head1 SUPPORT
 
@@ -349,6 +256,9 @@ L<http://cpanratings.perl.org/d/Devel-IntelliPerl>
 L<http://search.cpan.org/dist/Devel-IntelliPerl/>
 
 =back
+
+
+=head1 ACKNOWLEDGEMENTS
 
 
 =head1 COPYRIGHT & LICENSE

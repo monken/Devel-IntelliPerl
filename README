@@ -1,52 +1,139 @@
-Devel-IntelliPerl
+NAME
+    Devel::IntelliPerl - Auto-completion for Perl
 
-The README is used to introduce the module and provide instructions on
-how to install the module, any machine dependencies it may have (for
-example C compilers and installed libraries) and any other information
-that should be provided before the module is installed.
+SYNOPSIS
+        use Devel::IntelliPerl;
 
-A README file is required for CPAN modules since CPAN extracts the README
-file from a module distribution so that people browsing the archive
-can use it to get an idea of the module's uses. It is usually a good idea
-to provide version information here so that people can decide whether
-fixes for the module are worth downloading.
+        my $source = <<'SOURCE';
+        package Foo;
 
+        use Moose;
 
-INSTALLATION
+        has foobar => ( isa => 'Str', is => 'rw' );
 
-To install this module, run the following commands:
+        sub bar {
+            my $self = shift;
+            $self->
+        }
 
-	perl Makefile.PL
-	make
-	make test
-	make install
+        1;
+        SOURCE
 
-SUPPORT AND DOCUMENTATION
+        my $ip = Devel::IntelliPerl->new(source => $source, line_number => 9, column => 12);
+    
+        my @methods = $ip->methods;
+    
+        # @methods contains "bar" and "foobar" amongst others
+    
+ATTRIBUTES
+  line
+    Required
 
-After installing, you can find documentation for this module with the
-perldoc command.
+    Line number of the cursor. Starts at `1'.
 
-    perldoc Devel::IntelliPerl
+  column
+    Required
 
-You can also look for information at:
+    Position of the cursor. Starts at `0'.
 
-    RT, CPAN's request tracker
-        http://rt.cpan.org/NoAuth/Bugs.html?Dist=Devel-IntelliPerl
+  source
+    Required
 
-    AnnoCPAN, Annotated CPAN documentation
-        http://annocpan.org/dist/Devel-IntelliPerl
+    Source code.
 
-    CPAN Ratings
-        http://cpanratings.perl.org/d/Devel-IntelliPerl
+  filename
+    Optional
 
-    Search CPAN
-        http://search.cpan.org/dist/Devel-IntelliPerl/
+    Store the filename of the current file. This optional. If this value is
+    set `@INC' is extended by all `lib' directories, found in any parent
+    directory. This is useful if you want to have access to modules which
+    are not in `@INC' but in your local `lib' folder. This method sets inc.
 
+    This value is NOT used to retrive the source code! Use source instead.
 
-COPYRIGHT AND LICENCE
+  inc
+    Optional
 
-Copyright (C) 2009 Moritz Onken
+    All directories specified will be prepended to `@INC'.
 
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
+METHODS
+  keyword
+    This represents the current keyword.
+
+    Examples (cursor is always placed at the end of the line):
+
+      my $foo = MyClass-> # keyword is MyClass
+      my $foo->           # keyword is $foo
+
+  prefix
+    Part of a method which has already been typed.
+
+    Examples (cursor is always placed at after `->'):
+
+      my $foo = MyClass->foo # keyword is MyClass, prefix is foo
+      my $foo->bar           # keyword is $foo,    prefix is bar
+
+  methods
+    Returns all methods which were found for keyword.
+
+  trimmed_methods
+    Returns methods truncated from the beginning by the length of prefix.
+
+INTERNAL METHODS
+  handle_class
+    Loads the selected class.
+
+  handle_self
+    Loads the current class.
+
+  handle_variable
+    Tries to find the variable's class using regexes. Supported syntaxes:
+
+      $variable = MyClass->new
+      $variable = MyClass->new(...)
+      $variable = new MyClass
+      # $variable isa MyClass
+
+  inject_statement ($statement)
+    Injects `$statement' at the current position.
+
+  update_inc
+    Trigger called by filename.
+
+TODO
+    Support for auto completion in the POD (e.g. `Devel::IntelliPerl')
+AUTHOR
+        Moritz Onken, `<onken at netcubed.de>'
+
+BUGS
+        Please report any bugs or feature requests to `bug-devel-intelliperl
+        at rt.cpan.org', or through the web interface at
+        http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Devel-IntelliPerl. I
+        will be notified, and then you'll automatically be notified of
+        progress on your bug as I make changes.
+
+SUPPORT
+        You can find documentation for this module with the perldoc command.
+
+            perldoc Devel::IntelliPerl
+
+        You can also look for information at:
+
+        * RT: CPAN's request tracker
+            http://rt.cpan.org/NoAuth/Bugs.html?Dist=Devel-IntelliPerl
+
+        * AnnoCPAN: Annotated CPAN documentation
+            http://annocpan.org/dist/Devel-IntelliPerl
+
+        * CPAN Ratings
+            http://cpanratings.perl.org/d/Devel-IntelliPerl
+
+        * Search CPAN
+            http://search.cpan.org/dist/Devel-IntelliPerl/
+
+COPYRIGHT & LICENSE
+        Copyright 2009 Moritz Onken, all rights reserved.
+
+        This program is free software; you can redistribute it and/or modify
+        it under the same terms as Perl itself.
 
