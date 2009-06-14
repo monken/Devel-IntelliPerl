@@ -1,5 +1,9 @@
 Revision history for Devel-IntelliPerl
 
+0.02    2009-06-13
+        - works now with untitled documents (thanks to SF)
+        - changed TextMate script to redirect errors and warnings to /dev/null
+
 0.01    2009-06-12
-        First version, released on an unsuspecting world.
+        - First version, released on an unsuspecting world.
 

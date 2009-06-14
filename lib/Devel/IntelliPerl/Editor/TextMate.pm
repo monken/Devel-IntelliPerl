@@ -44,6 +44,7 @@ sub run {
     } elsif (my $error = $ip->error) {
         print "The following error occured:\n".$error;
     }
+    return;
 
 }
 
@@ -56,7 +57,7 @@ Devel::IntelliPerl::Editor::TextMate - IntelliPerl integration for TextMate
 
 =head1 SYNOPSIS
 
-    out=`perl -MDevel::IntelliPerl::Editor::TextMate -e 'run' $TM_LINE_NUMBER $TM_LINE_INDEX "$TM_FILEPATH" 2>&1`
+    out=`perl -MDevel::IntelliPerl::Editor::TextMate -e 'run' $TM_LINE_NUMBER $TM_LINE_INDEX "$TM_FILEPATH" 2>/dev/null`
     lines=`echo "$out" | wc -l`;
     if (($lines > 1)); then
       exit_show_tool_tip "$out"

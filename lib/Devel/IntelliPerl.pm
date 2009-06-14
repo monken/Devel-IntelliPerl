@@ -1,7 +1,5 @@
 package Devel::IntelliPerl;
 
-our $VERSION = '0.01';
-
 use Moose;
 use Moose::Util::TypeConstraints;
 use PPI;
@@ -13,68 +11,74 @@ my $KEYWORD = '[a-zA-Z_][_a-zA-Z0-9]*';
 my $CLASS   = '(' . $KEYWORD . ')(::' . $KEYWORD . ')*';
 my $VAR     = '\$' . $CLASS;
 
+our $VERSION = '0.01';
 
-has line_number   => ( isa => 'Int', is => 'rw', required => 1 );
-has column => ( isa => 'Int', is => 'rw', required => 1 );
-has filename => ( isa => 'Str', is => 'rw', trigger => \&update_inc );
-has source => ( isa => 'Str', is => 'rw', required => 1 );
+has line_number => ( isa => 'Int', is => 'rw', required => 1 );
+has column      => ( isa => 'Int', is => 'rw', required => 1 );
+has filename    => ( isa => 'Str', is => 'rw', trigger  => \&update_inc );
+has source      => ( isa => 'Str', is => 'rw', required => 1 );
 has inc => ( isa => 'ArrayRef[Str]', is => 'rw' );
-has ppi => ( isa => 'PPI::Document', is => 'rw', lazy => 1, builder => '_build_ppi', clearer => 'clear_ppi' );
-has error => (isa => 'Str', is => 'rw' );
-
+has ppi => (
+    isa     => 'PPI::Document',
+    is      => 'rw',
+    lazy    => 1,
+    builder => '_build_ppi',
+    clearer => 'clear_ppi'
+);
+has error => ( isa => 'Str', is => 'rw' );
 
 after source => sub {
     my $self = shift;
-    $self->clear_ppi if(@_);
+    $self->clear_ppi if (@_);
 };
 
 after inc => sub {
     my $self = shift;
-    unshift( @INC, @{$_[0]} ) if($_[0]);
+    unshift( @INC, @{ $_[0] } ) if ( $_[0] );
 };
 
-sub update_inc  {
-    my $self   = shift;
-    my $parent = Path::Class::File->new($self->filename);
+sub update_inc {
+    my $self = shift;
+    return unless ( $self->filename );
+    my $parent = Path::Class::File->new( $self->filename );
     my @libs;
     while ( $parent = $parent->parent ) {
         last if ( $parent eq $parent->parent );
         push( @libs, $parent->subdir('lib')->stringify )
           if ( -e $parent->subdir('lib') );
     }
-    $self->inc( \@libs );
-};
+    return $self->inc( \@libs );
+}
 
 sub line {
-    my ($self, $line) = @_;
-    my @source = split("\n", $self->source);
-    if(defined $line) {
-        $source[$self->line_number - 1] = $line;
-        $self->source(join("\n", @source));
+    my ( $self, $line ) = @_;
+    my @source = split( "\n", $self->source );
+    if ( defined $line ) {
+        $source[ $self->line_number - 1 ] = $line;
+        $self->source( join( "\n", @source ) );
     }
-    return $source[$self->line_number - 1]; 
+    return $source[ $self->line_number - 1 ];
 }
 
 sub inject_statement {
     my ( $self, $statement ) = @_;
-    my $line   = $self->line;
+    my $line = $self->line;
     my $prefix = substr( $line, 0, $self->column - 1 );
-    my $postfix = substr( $self->line, $self->column - 1 )
-      if(length $self->line >= $self->column);
-    $self->line($prefix
-      . $statement
-      . ($postfix || '') );
+    my $postfix;
+    $postfix = substr( $self->line, $self->column - 1 )
+      if ( length $self->line >= $self->column );
+    $self->line( $prefix . $statement . ( $postfix || '' ) );
     return $self->line;
 }
 
 sub _build_ppi {
-    return PPI::Document->new(\(shift->source));
+    return PPI::Document->new( \( shift->source ) );
 }
 
 sub keyword {
     my ($self) = @_;
     my $line = substr( $self->line, 0, $self->column - 1 );
-    if($line =~ /.*?(\$?$CLASS)->($KEYWORD)?$/) {
+    if ( $line =~ /.*?(\$?$CLASS(->($KEYWORD))*)->($KEYWORD)?$/ ) {
         return $1 || '';
     }
 }
@@ -82,61 +86,114 @@ sub keyword {
 sub prefix {
     my ($self) = @_;
     my $line = substr( $self->line, 0, $self->column - 1 );
-    if($line =~ /.*?(\$?$CLASS)->($KEYWORD)?$/) {
+    if ( $line =~ /.*?(\$?$CLASS)->($KEYWORD)?$/ ) {
         return $4 || '';
     }
 }
 
-
 sub handle_self {
-    my ($self) = @_;
+    my ( $self, $keyword ) = @_;
     $self->inject_statement('; my $FINDME;');
-    
-    my $doc = $self->ppi;
+    my $doc     = $self->ppi;
     my $package = $doc->find_first('Statement::Package');
+
+    return unless ($package);
+
     my $class = $package->namespace;
-    
-    my $var = $doc->find('Statement::Variable');
-    my $statement = first { first { $_ eq '$FINDME' } $_->variables } @{$var};
+
+    my $var       = $doc->find('Statement::Variable');
+    my $statement = first {
+        first { $_ eq '$FINDME' } $_->variables;
+    }
+    @{$var};
 
     $statement->sprevious_sibling->remove;
     $statement->remove;
-    eval("$doc");
-    if($@) {
+    eval "$doc";
+    if ($@) {
         $self->error($@);
-        return undef;
+        return;
     }
     return $class;
 }
 
 sub handle_variable {
-    my ($self) = @_;
-    my $keyword = $self->keyword;
-    my @source = split("\n", $self->source);
-    my @previous = reverse splice(@source, 0, $self->line_number - 1 );
+    my ( $self, $keyword ) = @_;
+    my @source = split( "\n", $self->source );
+    my @previous = reverse splice( @source, 0, $self->line_number - 1 );
     my $class = undef;
     foreach my $line (@previous) {
         if ( $line =~ /\Q$keyword\E.*?($CLASS)->new/ ) {
-            $class = $1; last;
+            $class = $1;
+            last;
         }
         elsif ( $line =~ /\Q$keyword\E.*?new ($CLASS)/ ) {
-            $class = $1; last;
+            $class = $1;
+            last;
         }
         elsif ( $line =~ /#.*\Q$keyword\E isa ($CLASS)/ ) {
-            $class = $1; last;
+            $class = $1;
+            last;
         }
     }
     return $class;
 }
 
 sub handle_class {
-    my ($self) = @_;
-    my $keyword = $self->keyword;
+    my ( $self, $keyword ) = @_;
     eval { Class::MOP::load_class($keyword); };
-    if($@) {
+    if ($@) {
         $self->handle_self;
     }
     return $keyword;
+}
+
+sub handle_method {
+    my ( $self, $keyword ) = @_;
+    $keyword =~ /^(\$?$CLASS)((->($KEYWORD))+)$/;
+    my ( undef, $method, @rest ) = split( /->/, $4 );
+    my $class;
+    my $pclass = $self->guess_class($1);
+    $self->handle_class($pclass);
+    my $meta = Class::MOP::Class->initialize($pclass);
+    if ( $meta->has_attribute($method) ) {
+        my $type_constraint = $meta->get_attribute($method)->type_constraint;
+        my $class_tc;
+        do {
+            $class_tc = $type_constraint
+              if ( $type_constraint->isa('Moose::Meta::TypeConstraint::Class') );
+          } while ( !$class_tc
+            && ( $type_constraint = $type_constraint->parent ) );
+
+        $class = $class_tc->class if ($class_tc);
+    }
+    elsif ($meta->has_method($method)
+        && ( my $method_meta = $meta->get_method($method) )
+        && $meta->get_method($method)
+        ->isa('MooseX::Method::Signatures::Meta::Method') )
+    {
+
+        my $constraints =
+          $method_meta->_return_type_constraint->type_constraints;
+        my $class_tc;
+        foreach my $type_constraint (@$constraints) {
+            do {
+                $class_tc = $type_constraint
+                  if (
+                    $type_constraint->isa('Moose::Meta::TypeConstraint::Class')
+                  );
+                push( @$constraints, @{ $type_constraint->type_constraints } )
+                  if ( $type_constraint->can('type_constraints') );
+              } while ( !$class_tc
+                && ( $type_constraint = $type_constraint->parent ) );
+            last if $class_tc;
+        }
+        $class = $class_tc->class if ($class_tc);
+
+    }
+    return @rest
+      ? $self->guess_class( $class . '->' . join( '->', @rest ) )
+      : $class;
 }
 
 sub trimmed_methods {
@@ -145,41 +202,52 @@ sub trimmed_methods {
     return map { substr( $_, length $prefix ) } $self->methods;
 }
 
+sub guess_class {
+    my ( $self, $keyword ) = @_;
+    if ( $keyword =~ /^\$self$/ ) {
+        return $self->handle_self($keyword);
+    }
+    elsif ( $keyword =~ /^$VAR$/ ) {
+        return $self->handle_variable($keyword);
+    }
+    elsif ( $keyword =~ /^(\$?$CLASS)(->($KEYWORD))+$/ ) {
+        return $self->handle_method($keyword);
+    }
+    else {
+        return $self->handle_class($keyword);
+    }
+    return;
+}
+
 sub methods {
     my ($self) = @_;
     my $keyword = $self->keyword;
-    my $class;
-    if($keyword =~ /\$self/) {
-        $class = $self->handle_self;
-    } elsif ( $keyword =~ /$VAR/ ) {
-        $class = $self->handle_variable;
-    } else {
-        $class = $self->handle_class;
-    }
-    
-    return undef unless($class && $class =~ /^$CLASS$/);
+
+    my $class = $self->guess_class($keyword);
+
+    return unless ( $class && $class =~ /^$CLASS$/ );
 
     eval { Class::MOP::load_class($class); };
-    if($@) { 
+    if ($@) {
         $self->error($@);
-        return undef;
-    } 
-    
+        return;
+    }
+
     my $prefix = $self->prefix;
-    
+
     my $meta = Class::MOP::Class->initialize($class);
 
     my @methods =
-      sort { $a =~ /^_/ cmp $b =~ /^_/ } 
+      sort { $a =~ /^_/ cmp $b =~ /^_/ }
       sort { $a =~ /^[A-Z][A-Z]$KEYWORD/ cmp $b =~ /^[A-Z][A-Z]$KEYWORD/ }
       sort { lc($a) cmp lc($b) } $meta->get_all_method_names;
-      
+
     return grep { $_ =~ /^$prefix/ } @methods;
 }
 
 __PACKAGE__->meta->make_immutable;
 
-42;
+1;
 
 __END__
 
@@ -288,6 +356,11 @@ Returns L</methods> truncated from the beginning by the length of L</prefix>.
 
 =head1 INTERNAL METHODS
 
+=head2 guess_class (Str $keyword)
+
+Given a keyword (e.g. C<< $foo->bar->file >>) this method tries to find the class
+from which to load the methods.
+
 =head2 handle_class
 
 Loads the selected class.
@@ -295,6 +368,36 @@ Loads the selected class.
 =head2 handle_self
 
 Loads the current class.
+
+=head2 handle_method
+
+This method tries to resove the class of the returned value of a given method.
+It supports Moose attributes as well as L<MooseX::Method::Signatures>.
+
+Example for an instrospectable class:
+
+    package Signatures;
+
+    use Moose;
+    use Path::Class::File;
+    use MooseX::Method::Signatures;
+    use Moose::Util::TypeConstraints;
+    
+    has dir => ( isa => 'Path::Class::Dir', is => 'rw' );
+
+    BEGIN { class_type 'PathClassFile', { class => 'Path::Class::File' }; }
+
+    method file returns (PathClassFile) {
+        return new Path::Class::File;
+    }
+
+    1;
+
+Given this class, Devel::IntelliPerl provides the following features:
+
+  my $sig = new Signatures;
+  $sig->_        # will suggest "dir" and "file" amongst others
+  $sig->file->_  # will suggest all methods from Path::Class::File
 
 =head2 handle_variable
 
@@ -323,7 +426,9 @@ L<http://www.screencast.com/t/djkraaYgpx>
 
 =over
 
-=item Support for auto completion in the POD (e.g. C<< L<Devel::IntelliPerl/[auto complete]> >>)
+=item Support for auto completion in the POD (e.g. C<< L< Devel::IntelliPerl/[auto complete] > >>)
+
+=back
 
 =head1 AUTHOR
 
