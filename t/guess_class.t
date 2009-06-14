@@ -34,3 +34,8 @@ is($ip->guess_class('$foo->bar->two'), 'Signatures', '$foo->bar->two isa Signatu
 is($ip->guess_class('$foo->signatures->file'), 'Path::Class::File', '$foo->signatures->file isa Path::Class:File');
 
 ok(grep { $_ eq 'bar' } $ip->methods, 'found method "bar"');
+
+use Foo;
+
+my $foo = new Foo;
+$foo->bar->foo->signatures->file->
