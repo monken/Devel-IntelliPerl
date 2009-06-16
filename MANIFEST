@@ -13,14 +13,21 @@ inc/Module/Install/WriteAll.pm
 lib/Devel/IntelliPerl.pm
 lib/Devel/IntelliPerl/Editor.pm
 lib/Devel/IntelliPerl/Editor/TextMate.pm
+lib/Devel/IntelliPerl/Editor/Vim.pm
 Makefile.PL
 MANIFEST			This list of files
 META.yml
 README
 t/autocomplete.t
 t/editor/texmate.t
+t/guess_class.t
+t/lib/Bar.pm
+t/lib/Declare.pm
+t/lib/Foo.pm
+t/lib/Signatures.pm
 t/load.t
 t/synopsis.t
 xt/boilerplate.t
+xt/critic.t
 xt/pod-coverage.t
 xt/pod.t
