@@ -11,7 +11,7 @@ my $KEYWORD = '[a-zA-Z_][_a-zA-Z0-9]*';
 my $CLASS   = '(' . $KEYWORD . ')(::' . $KEYWORD . ')*';
 my $VAR     = '\$' . $CLASS;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 has line_number => ( isa => 'Int', is => 'rw', required => 1 );
 has column      => ( isa => 'Int', is => 'rw', required => 1 );
@@ -44,6 +44,7 @@ sub update_inc {
     my @libs;
     while ( $parent = $parent->parent ) {
         last if ( $parent eq $parent->parent );
+        last unless -d $parent;
         push( @libs, $parent->subdir('lib')->stringify )
           if ( -e $parent->subdir('lib') );
     }
@@ -266,10 +267,12 @@ Devel::IntelliPerl - Auto-completion for Perl
     use Moose;
 
     has foobar => ( isa => 'Str', is => 'rw' );
+    has foo => ( isa => 'Foo', is => 'rw' );
 
     sub bar {
-        my $self = shift;
-        $self->
+        my ($self, $c) = @_;
+        # $c isa Catalyst
+        $self->foo->
     }
 
     1;
@@ -280,7 +283,10 @@ Devel::IntelliPerl - Auto-completion for Perl
     
     my @methods = $ip->methods;
     
-    # @methods contains "bar" and "foobar" amongst others
+C<@methods> contains C<bar>, C<foo>, and C<foobar> amongst others.
+Method completion for C<$c> works as well. Using the comment C<# $c isa Catalyst> you can specify
+the variable C<$c> as an object of the C<Catalyst> class. This comment can be located anywhere in
+the current file.
     
 =head1 ATTRIBUTES
 
@@ -312,7 +318,7 @@ your local C<lib> folder. This method sets L</inc>.
 
 B<This value is NOT used to retrive the source code!> Use L</source> instead.
 
-=head2 inc
+=head2 inc (ArrayRef[Str] $inc)
 
 B<Optional>
 
@@ -320,7 +326,7 @@ All directories specified will be prepended to C<@INC>.
 
 =head1 METHODS
 
-=head2 error
+=head2 error (Str $error)
 
 If an error occurs it is accessible via this method.
 
@@ -336,10 +342,11 @@ Examples (C<_> stands for the cursor position):
 
   my $foo = MyClass->_ # keyword is MyClass
   my $foo->_           # keyword is $foo
-
+  my $foo->bar->_      # keyword is $foo->bar
+  
 =head2 prefix
 
-Part of a method which has already been typed.
+Part of a method which has been typed already.
 
 Examples (C<_> stands for the cursor position):
 
@@ -348,7 +355,7 @@ Examples (C<_> stands for the cursor position):
 
 =head2 methods
 
-Returns all methods which were found for L</keyword>.
+Returns all methods which were found for L</keyword> and L</prefix>.
 
 =head2 trimmed_methods
 
@@ -408,7 +415,7 @@ Tries to find the variable's class using regexes. Supported syntaxes:
   $variable = new MyClass
   # $variable isa MyClass
 
-=head2 inject_statement ($statement)
+=head2 inject_statement (Str $statement)
 
 Injects C<$statement> at the current position.
 
@@ -426,7 +433,7 @@ L<http://www.screencast.com/t/djkraaYgpx>
 
 =over
 
-=item Support for auto completion in the POD (e.g. C<< L< Devel::IntelliPerl/[auto complete] > >>)
+=item Support for auto completion in the POD (e.g. C<< L <Devel::IntelliPerl/[auto complete]> >>)
 
 =back
 

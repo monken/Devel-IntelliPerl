@@ -1,4 +1,4 @@
-use Test::Perl::Critic (-severity => 1);
+use Test::Perl::Critic (-severity => 5);
 
 use Test::More;
 

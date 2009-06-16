@@ -1,3 +1,5 @@
+*.old
+*.tmp
 .DS_Store
 .cvsignore
 Devel-IntelliPerl-0.01.tar.gz
