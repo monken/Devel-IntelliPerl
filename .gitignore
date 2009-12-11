@@ -1,3 +1,4 @@
+*.gz
 *.old
 *.tmp
 .DS_Store

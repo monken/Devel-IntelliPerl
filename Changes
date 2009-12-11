@@ -1,5 +1,9 @@
 Revision history for Devel-IntelliPerl
 
+0.03    2009-12-11
+        - applied #52649 (thanks to mgrimes)
+        - switched to Dist::Zilla
+
 0.02    2009-06-16
         - Added Editor::Vim (thanks to M. Grimes)
         - fixed infinite loop regarding update_inc (M. Grimes)

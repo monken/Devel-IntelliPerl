@@ -30,7 +30,7 @@ sub run {
         print join( "\n", @methods );
     }
     elsif ( my $method = shift @methods ) {
-        print substr( $method, length $ip->prefix );
+        print $method;
     }
     elsif ( my $error = $ip->error ) {
         print "The following error occured:\n" . $error;
