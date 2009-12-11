@@ -31,6 +31,6 @@ is($ip->guess_class('$foo->foo->bar->foo'), 'Foo', '$foo->foo->bar->one->foo isa
 
 is($ip->guess_class('$foo->bar->two'), 'Signatures', '$foo->bar->two isa Signatures');
 
-is($ip->guess_class('$foo->signatures->file'), 'Path::Class::File', '$foo->signatures->file isa Path::Class:File');
+is($ip->guess_class('$foo->signatures->file'), 'Path::Class::File', '$foo->signatures->file isa Path::Class::File');
 
 ok(grep { $_ eq 'bar' } $ip->methods, 'found method "bar"');
