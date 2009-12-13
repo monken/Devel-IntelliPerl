@@ -4,7 +4,6 @@ use Moose;
 
 use Exporter qw(import);
 use Devel::IntelliPerl;
-use Text::Table;
 
 extends 'Devel::IntelliPerl::Editor';
 

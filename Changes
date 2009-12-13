@@ -1,5 +1,8 @@
 Revision history for Devel-IntelliPerl
 
+0.04    2009-12-12
+        - removed needless prereq
+
 0.03    2009-12-11
         - applied #52649 (thanks to mgrimes)
         - switched to Dist::Zilla
