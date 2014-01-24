@@ -4,6 +4,7 @@ use Moose;
 use Moose::Util::TypeConstraints;
 use PPI;
 use Class::MOP;
+use Class::Load;
 use Path::Class;
 use List::Util qw(first);
 
@@ -141,7 +142,7 @@ sub handle_variable {
 
 sub handle_class {
     my ( $self, $keyword ) = @_;
-    eval { Class::MOP::load_class($keyword); };
+    eval { Class::Load::load_class($keyword); };
     if ($@) {
         $self->handle_self;
     }
@@ -227,7 +228,7 @@ sub methods {
 
     return unless ( $class && $class =~ /^$CLASS$/ );
 
-    eval { Class::MOP::load_class($class); };
+    eval { Class::Load::load_class($class); };
     if ($@) {
         $self->error($@);
         return;
